@@ -1,0 +1,202 @@
+<!doctype html>
+<html>
+<head>
+<title>Code editor</title>
+<meta charset="UTF-8">
+<meta name=robots content="index, follow">
+<meta name=description content=Brython >
+<meta name=author content="Pierre Quentel">
+<meta name=keywords content="Python, Brython">
+<meta name=viewport content="width=device-width,initial-scale=1,maximum-scale=1">
+<link rel="icon" type="image/png" href="../favicon.png" />
+<style>
+textarea {
+     -webkit-box-sizing: border-box; /* Safari/Chrome, other WebKit */
+     -moz-box-sizing: border-box;    /* Firefox, other Gecko */
+     box-sizing: border-box;         /* Opera/IE 8+ */
+}
+
+body{
+    font-family: tahoma, arial;
+    font-size: 12px;
+    color: #000;
+    background-color: #aaa;
+}
+button, a.btn {
+    border-width: 1px;
+    border-style: solid;
+    border-color: #333;
+    background-color: #eee;
+    padding: 0.4em;
+    color: #000;
+}
+
+#container {
+    width:90%;
+    height: 66%;
+    position:relative;
+    margin-top: 2em;
+}
+
+#menu{
+    display: table-row;
+}
+
+#panels{
+    display: table-row;
+}
+
+#legend{
+    position: absolute;
+}
+
+#left-td{
+    width: 10%;
+}
+
+#file-browser {
+    height:100%;
+    vertical-align: top;
+    margin-top: 1em;
+    background-color: #fff;
+}
+
+#left-div {
+    width:50%;
+    height:100%;
+    position:relative;
+    margin: auto;
+    display: table-cell;
+}
+
+#right-div {
+    width:48%;
+    height:100%;
+    position:relative;
+    margin: auto;
+    display: table-cell;
+}
+
+#editor {
+    float:none;
+    width:50%;
+    height:100%;
+}
+
+#console {
+    width:100%;
+    height:100%;
+    float:none;
+    background-color:#000;
+    color:#fff;
+    font-family:'Oxygen Mono', Consolas, 'Liberation Mono', 'DejaVu Sans Mono', monospace;
+    font-size:1em;
+    overflow:auto
+}
+
+#filezone{
+    margin: 0.5em;
+}
+
+a.btn{
+    text-decoration: none;
+    cursor: default;
+}
+.padleft{
+    margin-left: 3em;
+}
+.pyfile{
+    padding: 0.2em;
+}
+.current{
+    color: #333;
+    background-color: #ccc;
+}
+</style>
+<noscript>Please enable Javascript to view this page correctly</noscript>
+
+<script type="text/javascript" src="/src/brython_builtins.js"></script>
+<script type="text/javascript" src="/src/version_info.js"></script>
+<script type="text/javascript" src="/src/py2js.js"></script>
+<script type="text/javascript" src="/src/loaders.js"></script>
+<script type="text/javascript" src="/src/py_object.js"></script>
+<script type="text/javascript" src="/src/py_type.js"></script>
+<script type="text/javascript" src="/src/py_utils.js"></script>
+<script type="text/javascript" src="/src/py_sort.js"></script>
+<script type="text/javascript" src="/src/py_builtin_functions.js"></script>
+<script type="text/javascript" src="/src/py_exceptions.js"></script>
+<script type="text/javascript" src="/src/py_range_slice.js"></script>
+<script type="text/javascript" src="/src/py_bytes.js"></script>
+<script type="text/javascript" src="/src/py_set.js"></script>
+<script type="text/javascript" src="/src/js_objects.js"></script>
+<script type="text/javascript" src="/src/stdlib_paths.js"></script>
+<script type="text/javascript" src="/src/py_import.js"></script>
+<script type="text/javascript" src="/src/unicode.min.js"></script>
+<script type="text/javascript" src="/src/py_string.js"></script>
+<script type="text/javascript" src="/src/py_int.js"></script>
+<script type="text/javascript" src="/src/py_long_int.js"></script>
+<script type="text/javascript" src="/src/py_float.js"></script>
+<script type="text/javascript" src="/src/py_complex.js"></script>
+<script type="text/javascript" src="/src/py_dict.js"></script>
+<script type="text/javascript" src="/src/py_list.js"></script>
+<script type="text/javascript" src="/src/py_generator.js"></script>
+<script type="text/javascript" src="/src/py_dom.js"></script>
+
+<script type="text/javascript" src="/src/builtin_modules.js"></script>
+<script type="text/javascript" src="/src/py_import_hooks.js"></script>
+<script type="text/javascript" src="/src/async.js"></script>
+
+<script src="ace/ace.js" type="text/javascript" charset="utf-8"></script>
+
+<link rel="stylesheet"
+      href="fontawesome/css/all.css">
+
+</head>
+
+<body onload=brython({'debug':1}) >
+
+<table id="container">
+    <tr id="menu" style="padding: 3px">
+      <td>
+        <a href="#" id="new_script" class="btn" title="New script"><i class="far fa-plus-square"></i></a>
+        <a href="#" id="open" class="btn" title="Open"><i class="fas fa-folder-open"></i></a>
+        <a href="#" download="filename" id="save" class="btn" title="Save"><i class="fas fa-save"></i></a>
+      </td>
+      <td colspan="2">
+        <a href="#" download="filename" id="undo" class="btn padleft" title="Undo"><i class="fas fa-undo"></i></a>
+        <a href="#" download="filename" id="redo" class="btn" title="Redo"><i class="fas fa-redo"></i></a>
+        <a id="run_source" class="btn padleft" title="Run"><i class="fas fa-play"></i></a>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="3">
+        <div id="filezone"></div>
+      </td>
+    </tr>
+    <tr>
+      <td id="left-td">
+        <div id="file-browser"></div>
+      </td>
+      <td id="left-div">
+        <div id="editor" style="margin-top: 1em;width:100%;"></div>
+      </td>
+      <td id="right-div">
+        <div style="width:100%;height:100%;">
+          <textarea id="console" class="codearea" autocomplete="off"></textarea>
+        </div>
+      </td>
+    </tr>
+</table>
+
+<div id="legend">
+    <span id="legend_text">Python code editor. Uses
+    <a href="https://brython.info" target="_blank">Brython</a> and
+    <a href="https://ace.c9.io/">Ace</a></span>.
+</div>
+
+<script type="text/python3" src="editor.py">
+</script>
+
+</body>
+
+</html>
