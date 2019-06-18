@@ -14,8 +14,7 @@ translations = {
         "run_source": "Exécuter",
         "legend_text": """Editeur de code Python. Utilise
                 <a href="https://brython.info" target="_blank">Brython</a> et
-                <a href="https://ace.c9.io/">Ace</a>""",
-        "save_msg": "Utiliser le clic droit pour sauvegarder"
+                <a href="https://ace.c9.io/">Ace</a>"""
     }
 }
 
@@ -59,6 +58,18 @@ editor.setTheme("ace/theme/github")
 editor.session.setMode("ace/mode/python")
 editor.focus()
 
+def editor_changed(*args):
+    current = document.select(".current")
+    if current:
+        filename = current[0].text.rstrip("*")
+        if open_files[filename]["content"] != editor.getValue():
+            if not current[0].text.endswith("*"):
+                current[0].text += "*"
+        elif current[0].text.endswith("*"):
+            current[0].text = current[0].text.rstrip("*")
+
+editor.on("change", editor_changed)
+
 def _(id, default):
     """Translation"""
     if language and language in translations and \
@@ -81,18 +92,26 @@ def check_db(evt):
     db = request.result
     tx = db.transaction("scripts", "readonly")
     store = tx.objectStore("scripts")
-    req = store.count('')
+    req = store.count('truc.py*')
 
     @bind(req, "success")
     def check(evt):
         if evt.target.result:
             tx = db.transaction("scripts", "readwrite")
             store = tx.objectStore("scripts")
-            req = store.delete('')
+            req = store.delete('truc.py*')
 
             @bind(req, "success")
             def deleted(evt):
                 print("delete !")
+
+@bind("#new_script", "click")
+def new_script(evt):
+    editor.setValue("")
+    filename = ".py"
+    open_files[filename] = {"content": "", "cursor": [0, 0]}
+    update_filebrowser(filename)
+    rename(document.select_one(".current"))
 
 @bind("#run_source", "click")
 def run(evt):
@@ -137,6 +156,7 @@ def display(evt):
 def rename2(evt, old_name):
     new_name = evt.target.value
     if new_name == old_name:
+        update_filebrowser(old_name)
         return
 
     # Search if new name already exists
@@ -160,7 +180,7 @@ def rename2(evt, old_name):
 
                 @bind(req, "success")
                 def replaced(evt):
-                    # Now delete script old_name
+                    # Now delete script with old name
                     req = store.delete(old_name)
 
                     @bind(req, "success")
@@ -172,15 +192,31 @@ def rename2(evt, old_name):
                                 "cursor":[0, 0]
                             }
                         update_filebrowser(new_name)
+        else:
+            # New script
+            tx = db.transaction("scripts", "readwrite")
+            store = tx.objectStore("scripts")
+            data = {"name": new_name, "content": editor.getValue()}
+            req = store.put(data)
 
-    @bind(req, "error")
-    def isnew(evt):
-        alert("doesn't exist")
+            @bind(req, "success")
+            def created(evt):
+                del open_files[old_name]
+                open_files[new_name] = {"content": "", "cursor": [0, 0]}
+                update_filebrowser(new_name)
 
-        parent = evt.target.parent
-        evt.target.parent.text = evt.target.value
-        parent.bind("click", display)
 
+def keyup_rename(evt, filename):
+    """Handle two special keys, Escape and Enter."""
+    if evt.keyCode == 27: # Escape key: cancel
+        evt.target.parent.remove()
+        update_filebrowser(filename)
+        evt.preventDefault()
+        evt.stopPropagation()
+    elif evt.keyCode == 13: # Enter key: same as blur
+        rename2(evt, filename)
+        evt.preventDefault()
+        evt.stopPropagation()
 
 def rename(current):
     """Rename current file."""
@@ -188,8 +224,10 @@ def rename(current):
     filename = current.text
     current.html = f'<input value="{filename}">'
     entry = current.children[0]
-    entry.setSelectionRange(len(filename), len(filename))
+    pos = filename.find(".")
+    entry.setSelectionRange(pos, pos)
     entry.bind("blur", lambda evt: rename2(evt, filename))
+    entry.bind("keyup", lambda evt: keyup_rename(evt, filename))
     entry.focus()
 
 def update_filebrowser(current):
@@ -264,13 +302,27 @@ def vfs_open(evt):
 
     cursor.bind('success', get_scripts)
 
+@bind("#redo", "click")
+def undo(evt):
+    manager = editor.session.getUndoManager()
+    if manager.hasRedo():
+        editor.redo()
+        editor.clearSelection()
+        editor.focus()
+
+@bind("#undo", "click")
+def undo(evt):
+    if editor.session.getUndoManager().hasUndo():
+        editor.undo()
 
 @bind("#save", "click")
 def save(evt):
     """Save the current script in the database."""
-    name = filebrowser.select_one(".current").text
+    current = filebrowser.select_one(".current")
+    name = current.text
     if not name:
         return
+    name = name.rstrip("*")
     db = request.result
     tx = db.transaction("scripts", "readwrite")
     store = tx.objectStore("scripts")
@@ -278,8 +330,9 @@ def save(evt):
     data = {"name": name, "content": editor.getValue()}
     store.put(data)
 
-    # when record is added, show message
+    # When record is added, show message
     def ok(evt):
+        current.text = name
         alert("saved")
 
     cursor.bind('success', ok)
