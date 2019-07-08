@@ -36,6 +36,7 @@ button, a.btn {
     height: 66%;
     position:relative;
     margin-top: 2em;
+    visibility: hidden;
 }
 
 #menu{
@@ -48,6 +49,7 @@ button, a.btn {
 
 #legend{
     position: absolute;
+    visibility: hidden;
 }
 
 #left-td{
@@ -115,8 +117,8 @@ a.btn{
 </style>
 <noscript>Please enable Javascript to view this page correctly</noscript>
 
-<script type="text/javascript" src="/brython/brython.js"></script>
-<script type="text/javascript" src="/brython/brython_stdlib.js"></script>
+<script type="text/javascript" src="brython/brython.js"></script>
+<script type="text/javascript" src="brython/brython_stdlib.js"></script>
 
 <script src="ace/ace.js" type="text/javascript" charset="utf-8"></script>
 
@@ -125,6 +127,8 @@ a.btn{
 </head>
 
 <body onload=brython({'debug':1}) >
+
+<div id="wait">Loading, please wait...</div>
 
 <table id="container">
     <tr id="menu" style="padding: 3px">
@@ -177,8 +181,7 @@ a.btn{
     <a href="https://ace.c9.io/">Ace</a></span>.
 </div>
 
-<script type="text/python3" src="editor.py">
-</script>
+<script type="text/python" src="editor.py"></script>
 
 </body>
 

@@ -1,5 +1,12 @@
 from browser import ajax, bind, confirm, document, window, alert, prompt, html
 from browser.widgets.dialog import Dialog
+
+import re
+
+document["wait"].remove()
+document["container"].style.visibility = "visible"
+document["legend"].style.visibility = "visible"
+
 import tb
 
 from console import Console
@@ -52,11 +59,17 @@ open_files = {} # Maps file name to their content
 # Create the interactive Python console
 output = Console(document["console"])
 
+editor = None
+
 # Create a Python code editor with Ace
-editor = window.ace.edit("editor")
-editor.setTheme("ace/theme/github")
-editor.session.setMode("ace/mode/python")
-editor.focus()
+def create_editor():
+    global editor
+    editor = window.ace.edit("editor")
+    editor.setTheme("ace/theme/github")
+    editor.session.setMode("ace/mode/python")
+    editor.focus()
+    editor.on("change", editor_changed)
+    return editor
 
 def editor_changed(*args):
     current = document.select(".current")
@@ -68,7 +81,6 @@ def editor_changed(*args):
         elif current[0].text.endswith("*"):
             current[0].text = current[0].text.rstrip("*")
 
-editor.on("change", editor_changed)
 
 def _(id, default):
     """Translation"""
@@ -107,11 +119,34 @@ def check_db(evt):
 
 @bind("#new_script", "click")
 def new_script(evt):
-    editor.setValue("")
-    filename = ".py"
-    open_files[filename] = {"content": "", "cursor": [0, 0]}
-    update_filebrowser(filename)
-    rename(document.select_one(".current"))
+    """Create new script. Give it the name moduleX.py where X is the first
+    number available."""
+    db = request.result
+    tx = db.transaction("scripts", "readonly")
+    store = tx.objectStore("scripts")
+    cursor = store.openCursor()
+
+    nums = []
+
+    def get_scripts(evt):
+        res = evt.target.result
+        if res:
+            name = res.value.name
+            mo = re.match("^module(\d+).py$", name)
+            if mo:
+                nums.append(int(mo.groups()[0]))
+            getattr(res, "continue")()
+        else:
+            if not nums:
+                num = 1
+            else:
+                num = max(nums) + 1
+            create_editor()
+            filename = f"module{num}.py"
+            open_files[filename] = {"content": "", "cursor": [0, 0]}
+            update_filebrowser(filename)
+
+    cursor.bind('success', get_scripts)
 
 @bind("#run_source", "click")
 def run(evt):
