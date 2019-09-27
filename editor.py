@@ -166,7 +166,6 @@ def run(evt):
         output.namespace = ns
     except:
         tb.print_exc(file=output)
-        output.flush()
     output.prompt()
 
 def display(evt):
