@@ -91,8 +91,8 @@ $B.regexIdentifier=/^(?:[\$A-Z_a-z\xAA\xB5\xBA\xC0-\xD6\xD8-\xF6\xF8-\u02C1\u02C
 __BRYTHON__.implementation=[3,7,6,'dev',0]
 __BRYTHON__.__MAGIC__="3.7.6"
 __BRYTHON__.version_info=[3,7,0,'final',0]
-__BRYTHON__.compiled_date="2019-09-27 09:45:31.842950"
-__BRYTHON__.timestamp=1569570331842
+__BRYTHON__.compiled_date="2019-10-07 11:14:27.141140"
+__BRYTHON__.timestamp=1570439667141
 __BRYTHON__.builtin_module_names=["_aio","_ajax","_base64","_binascii","_json","_jsre","_locale","_multiprocessing","_posixsubprocess","_profile","_sre_utils","_string","_strptime","_svg","_warnings","_webcomponent","_webworker","_zlib_utils","array","builtins","dis","hashlib","long_int","marshal","math","modulefinder","posix","random","unicodedata"]
 ;
 
@@ -382,8 +382,8 @@ if(scope.globals && scope.globals.has(name)>-1){$_SyntaxError(C,["annotated name
 "' can't be global"])}
 scope.annotations=scope.annotations ||new Set()
 scope.annotations.add(name)
-scope.binding=scope.binding ||{}
-scope.binding[name]=true}
+if(! C.$in_parens){scope.binding=scope.binding ||{}
+scope.binding[name]=true}}
 this.toString=function(){return '(annotation) '+this.tree}
 this.to_js=function(){return $to_js(this.tree)}}
 var $AssertCtx=$B.parser.$AssertCtx=function(C){
@@ -1208,7 +1208,6 @@ this.parent.node.module=this.module
 this.binding={}
 if(this.scope.globals !==undefined &&
 this.scope.globals.has(name)){
-console.log("bind def name in globals",this.root.id)
 $bind(name,this.root,this)}else{$bind(name,this.scope,this)}
 id_ctx.bound=true
 if(scope.is_function){if(scope.C.tree[0].locals.indexOf(name)==-1){scope.C.tree[0].locals.push(name)}}}
@@ -2353,7 +2352,10 @@ this.js=""
 if(this.tree[0]){var is_not_def=this.scope.ntype !="def"
 if(this.tree[0].annotation){
 if(is_not_def){if(this.tree[0].type=="expr" &&
-this.tree[0].tree[0].type=="id"){return "$locals.__annotations__.$string_dict['"+
+this.tree[0].tree[0].type=="id"){var js=""
+if(! this.scope.binding.__annotations__){js+="$locals.__annotations__ = _b_.dict.factory();"
+this.scope.binding.__annotations__=true}
+return js+"$locals.__annotations__.$string_dict['"+
 this.tree[0].tree[0].value+"'] = "+
 this.tree[0].annotation.to_js()+";"}else if(this.tree[0].type=="def"){
 this.js=this.tree[0].annotation.to_js()+";"}else{
@@ -2362,7 +2364,9 @@ this.tree=[]}}else if(this.tree[0].type !="def"){
 this.tree=[]}}else if(this.tree[0].type=="assign" &&
 this.tree[0].tree[0].annotation){
 var left=this.tree[0].tree[0],right=this.tree[0].tree[1]
-this.js="var $value = "+right.to_js()+";"
+console.log("annot assign",this.scope.binding)
+if(! this.scope.binding.__annotations__){this.js+="$locals.__annotations__ = _b_.dict.$factory();"}
+this.js+="var $value = "+right.to_js()+";"
 this.tree[0].tree.splice(1,1)
 new $RawJSCtx(this.tree[0],"$value")
 if(left.tree[0]&& left.tree[0].type=="id" && is_not_def){this.js+="$locals.__annotations__.$string_dict['"+
@@ -3812,9 +3816,8 @@ if(C.parent.type=="sub" ||
 (C.parent.type=="list_or_tuple" &&
 C.parent.parent.type=="sub")){return new $AbstractExprCtx(new $SliceCtx(C.parent),false)}else if(C.parent.type=="slice"){return $transition(C.parent,token,value)}else if(C.parent.type=="node"){
 if(C.tree.length==1){var child=C.tree[0]
-if(["id","sub","attribute"].indexOf(child.type)>-1 ||
-(child.real=="tuple" && child.expect=="," &&
-child.tree.length==1)){return new $AbstractExprCtx(new $AnnotationCtx(C),false)}}
+if(["id","sub","attribute"].indexOf(child.type)>-1){return new $AbstractExprCtx(new $AnnotationCtx(C),false)}else if(child.real=="tuple" && child.expect=="," &&
+child.tree.length==1){return new $AbstractExprCtx(new $AnnotationCtx(child.tree[0]),false)}}
 $_SyntaxError(C,"invalid target for annotation")}
 break
 case '=':
@@ -4091,7 +4094,14 @@ new $SubCtx(C.parent),false)}
 if(token=='('){return new $CallCtx(C.parent)}
 return $transition(C.parent,token,value)}else{if(C.expect==','){switch(C.real){case 'tuple':
 case 'gen_expr':
-if(token==')'){C.closed=true
+if(token==')'){if(C.parent.type=="expr" &&
+C.parent.parent.type=="node" &&
+C.tree.length==1){
+var node=C.parent.parent,ix=node.tree.indexOf(C.parent),expr=C.tree[0]
+expr.parent=node
+expr.$in_parens=true 
+node.tree.splice(ix,1,expr)}
+C.closed=true
 if(C.real=='gen_expr'){C.intervals.push($pos)}
 if(C.parent.type=="packed"){return C.parent.parent}
 return C.parent}
@@ -4838,17 +4848,20 @@ $pos=pos
 $_SyntaxError(C,'unknown token ['+car+']')}}
 if(br_stack.length !=0){var br_err=br_pos[0]
 $pos=br_err[1]
-$_SyntaxError(br_err[0],["Unbalanced bracket "+br_stack.charAt(br_stack.length-1)])}
+var lines=src.split("\n"),id=root.id,fname=id.startsWith("$")? '<string>' :id
+$_SyntaxError(br_err[0],["unexpected EOF while parsing ("+fname+", line "+
+(lines.length-1)+")"])}
 if(C !==null && C.type=="async"){
 console.log("error with async",pos,src,src.substr(pos))
 $pos=pos-7
 throw $_SyntaxError(C,"car "+car+"after async",pos)}
-if(C !==null && C.tree[0]&& $indented.indexOf(C.tree[0].type)>-1){$pos=pos-1
+if(C !==null && C.tree[0]&&
+$indented.indexOf(C.tree[0].type)>-1){$pos=pos-1
 $_SyntaxError(C,'expected an indented block',pos)}}
 var $create_root_node=$B.parser.$create_root_node=function(src,module,locals_id,parent_block,line_num){var root=new $Node('module')
 root.module=module
 root.id=locals_id
-root.binding={__doc__:true,__name__:true,__file__:true,__package__:true,__annotations__:true}
+root.binding={__doc__:true,__name__:true,__file__:true,__package__:true}
 root.parent_block=parent_block
 root.line_num=line_num
 root.indent=-1
@@ -4885,7 +4898,6 @@ var offset=0
 root.insert(0,$NodeJS(js.join('')))
 offset++
 root.insert(offset++,$NodeJS(local_ns+'["__package__"] = "'+__package__+'"'))
-root.insert(offset++,$NodeJS('$locals.__annotations__ = _b_.dict.$factory()'))
 var enter_frame_pos=offset,js='var $top_frame = ["'+locals_id.replace(/\./g,'_')+'", '+
 local_ns+', "'+module.replace(/\./g,'_')+'", '+
 global_ns+']\n$B.frames_stack.push($top_frame)\n'+
@@ -4920,9 +4932,6 @@ $B.profile=options.profile
 if(options.indexedDB===undefined){options.indexedDB=true}
 if(options.static_stdlib_import===undefined){options.static_stdlib_import=true}
 $B.static_stdlib_import=options.static_stdlib_import
-if(options.open !==undefined){_b_.open=options.open
-console.log("DeprecationWarning: \'open\' option of \'brython\' "+
-"function will be deprecated in future versions of Brython.")}
 $B.$options=options
 var meta_path=[],path_hooks=[]
 if($B.use_VFS){meta_path.push($B.$meta_path[0])
@@ -4957,9 +4966,6 @@ if((' '+e.rel+' ').indexOf(' prepend ')!=-1){$B.path.unshift(href);}else{$B.path
 var filetype=e.hreflang
 if(filetype){if(filetype.slice(0,2)=='x-'){filetype=filetype.slice(2)}
 _importlib.optimize_import_for_path(e.href,filetype)}}}
-if(options.re_module !==undefined){if(options.re_module=='pyre' ||options.re_module=='jsre'){$B.$options.re=options.re}
-console.log("DeprecationWarning: \'re_module\' option of \'brython\' "+
-"function will be deprecated in future versions of Brython.")}
 if($B.$options.args){$B.__ARGV=$B.$options.args}else{$B.__ARGV=_b_.list.$factory([])}
 if(!$B.isWebWorker){_run_scripts(options)}}
 $B.run_script=function(src,name,run_loop){
@@ -5874,16 +5880,15 @@ throw _b_.NameError.$factory("free variable '"+$B.from_alias(name)+
 $B.$JS2Py=function(src){if(typeof src==="number"){if(src % 1===0){return src}
 return _b_.float.$factory(src)}
 if(src===null ||src===undefined){return _b_.None}
-var klass=$B.get_class(src)
-if(klass !==undefined){if(klass===_b_.list){if(src.__class__){return src}
-return $B.JSArray.$factory(src)}else if(klass===$B.JSObject){src=src.js}else{return src}}
-if(typeof src=="object"){if($B.$isNode(src)){return $B.DOMNode.$factory(src)}
-if($B.$isEvent(src)){return $B.$DOMEvent(src)}
-if($B.$isNodeList(src)){return $B.DOMNode.$factory(src)}
 if(Array.isArray(src)&&
 Object.getPrototypeOf(src)===Array.prototype){var res=[]
 for(var i=0,len=src.length;i< len;i++){res.push($B.$JS2Py(src[i]))}
-return res}}
+return res}
+var klass=$B.get_class(src)
+if(klass !==undefined){if(klass===$B.JSObject){src=src.js}else{return src}}
+if(typeof src=="object"){if($B.$isNode(src)){return $B.DOMNode.$factory(src)}
+if($B.$isEvent(src)){return $B.$DOMEvent(src)}
+if($B.$isNodeList(src)){return $B.DOMNode.$factory(src)}}
 return $B.JSObject.$factory(src)}
 $B.list_key=function(obj,key){key=$B.$GetInt(key)
 if(key < 0){key+=obj.length}
@@ -8778,18 +8783,8 @@ $B.set_func_names(module,"builtins")
 function parent_package(mod_name){var parts=mod_name.split(".")
 parts.pop()
 return parts.join(".")}
-function $download_module(mod,url,$package){var xhr=new XMLHttpRequest(),fake_qs
-switch($B.$options.cache){case "version":
-fake_qs="?v="+$B.version_info[2]
-break
-case "browser":
-fake_qs=""
-break
-default:
-fake_qs="?v="+(new Date().getTime())}
+function $download_module(mod,url,$package){var xhr=new XMLHttpRequest(),fake_qs="?v="+(new Date().getTime()),res=null,mod_name=mod.__name__
 var timer=_window.setTimeout(function(){xhr.abort()},5000)
-var res=null,mod_name=mod.__name__,res,t0=new Date()
-$B.download_time=$B.download_time ||0
 xhr.open("GET",url+fake_qs,false)
 xhr.send()
 if($B.$CORS){if(xhr.status==200 ||xhr.status==0){res=xhr.responseText}else{res=_b_.FileNotFoundError.$factory("No module named '"+
@@ -8805,7 +8800,6 @@ _window.clearTimeout(timer)
 if(res==null){throw _b_.FileNotFoundError.$factory("No module named '"+
 mod_name+"' (res is null)")}
 if(res.constructor===Error){throw res}
-$B.download_time+=(new Date())-t0
 return res}
 $B.$download_module=$download_module
 function import_js(mod,path){try{var module_contents=$download_module(mod,path,undefined)}catch(err){return null}
@@ -8877,7 +8871,7 @@ content:src,name:mod_name,imports:Object.keys(root.imports).join(",")}}catch(err
 for(var attr in err){console.log(attr+" "+err[attr])}
 if($B.debug > 0){console.log("line info "+__BRYTHON__.line_info)}
 throw err}}
-$B.run_py=run_py
+$B.run_py=run_py 
 function new_spec(fields){
 fields.__class__=module
 return fields}
@@ -9100,10 +9094,10 @@ for(var attr in modobj){if(attr[0]!=="_"){locals[attr]=modobj[attr]}}}else{
 for(var i=0,l=__all__.length;i < l;++i){var name=__all__[i]
 var alias=aliases[name]||name
 try{
-locals[alias]=$B.$getattr(modobj,name);}catch($err1){
+locals[alias]=$B.$getattr(modobj,name)}catch($err1){
 try{var name1=$B.from_alias(name)
-$B.$getattr(__import__,'__call__')(mod_name+'.'+name1,globals,undefined,[],0);
-locals[alias]=$B.$getattr(modobj,name1);}catch($err3){
+$B.$getattr(__import__,'__call__')(mod_name+'.'+name1,globals,undefined,[],0)
+locals[alias]=$B.$getattr(modobj,name1)}catch($err3){
 if(mod_name==="__future__"){
 var frame=$B.last($B.frames_stack),line_info=frame[3].$line_info,line_elts=line_info.split(','),line_num=parseInt(line_elts[0])
 $B.$SyntaxError(frame[2],"future feature "+name+" is not defined",current_frame[3].src,undefined,line_num)}
@@ -13247,7 +13241,7 @@ var arraybuffers=["Int8Array","Uint8Array","Uint8ClampedArray","Int16Array","Uin
 arraybuffers.forEach(function(ab){if(self[ab]!==undefined){modules['javascript'][ab]=$B.JSObject.$factory(self[ab])}})
 var _b_=$B.builtins
 modules['_sys']={
-Getframe :function(depth){return $B._frame.$factory($B.frames_stack,depth)},exc_info:function(){for(var i=$B.frames_stack.length-1;i >=0;i--){var frame=$B.frames_stack[i],exc=frame[1].$current_exception
+Getframe :function(depth){return $B._frame.$factory($B.frames_stack,$B.frames_stack.length-depth-1)},exc_info:function(){for(var i=$B.frames_stack.length-1;i >=0;i--){var frame=$B.frames_stack[i],exc=frame[1].$current_exception
 if(exc){return _b_.tuple.$factory([exc.__class__,exc,$B.$getattr(exc,"__traceback__")])}}
 return _b_.tuple.$factory([_b_.None,_b_.None,_b_.None])},modules:{__get__:function(){return $B.obj_dict($B.imported)},__set__:function(self,obj,value){throw _b_.TypeError.$factory("Read only property 'sys.modules'")}},path:{__get__:function(){return $B.path},__set__:function(self,obj,value){$B.path=value;}},meta_path:{__get__:function(){return $B.meta_path},__set__:function(self,obj,value){$B.meta_path=value }},path_hooks:{__get__:function(){return $B.path_hooks},__set__:function(self,obj,value){$B.path_hooks=value }},path_importer_cache:{__get__:function(){return _b_.dict.$factory($B.JSObject.$factory($B.path_importer_cache))},__set__:function(self,obj,value){throw _b_.TypeError.$factory("Read only property"+
 " 'sys.path_importer_cache'")}},stderr:{__get__:function(){return $B.stderr},__set__:function(self,obj,value){$B.stderr=value},write:function(data){_b_.getattr($B.stderr,"write")(data)}},stdout:{__get__:function(){return $B.stdout},__set__:function(self,obj,value){$B.stdout=value},write:function(data){_b_.getattr($B.stdout,"write")(data)}},stdin:{__get__:function(){return $B.stdin},__set__:function(){throw _b_.TypeError.$factory("sys.stdin is read-only")}},vfs:{__get__:function(){if($B.hasOwnProperty("VFS")){return $B.obj_dict($B.VFS)}
