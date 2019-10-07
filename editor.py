@@ -1,15 +1,19 @@
+import re
+
 from browser import ajax, bind, confirm, document, window, alert, prompt, html
 from browser import console
-from browser.widgets.dialog import Dialog
+from browser.widgets import dialog
 
-import re
+from scripts_finder import ScriptsFinder
 
 document["wait"].remove()
 document["container"].style.visibility = "visible"
 document["legend"].style.visibility = "visible"
 
+import sys
 import tb
 
+sys.meta_path.append(ScriptsFinder)
 from console import Console
 
 translations = {
@@ -98,6 +102,8 @@ def _(id, default):
 IDB = window.indexedDB
 request = IDB.open("brython_scripts")
 
+scripts = {}
+
 @bind(request, "upgradeneeded")
 def create_db(evt):
     # The database did not previously exist, so create object store.
@@ -105,22 +111,19 @@ def create_db(evt):
     store = db.createObjectStore("scripts", {"keyPath": "name"})
 
 @bind(request, "success")
-def check_db(evt):
+def load_scripts(evt):
     db = request.result
     tx = db.transaction("scripts", "readonly")
     store = tx.objectStore("scripts")
-    req = store.count('truc.py*')
+    req = store.getAll()
 
     @bind(req, "success")
     def check(evt):
-        if evt.target.result:
-            tx = db.transaction("scripts", "readwrite")
-            store = tx.objectStore("scripts")
-            req = store.delete('truc.py*')
-
-            @bind(req, "success")
-            def deleted(evt):
-                print("delete !")
+        for script in evt.target.result:
+            name = script.name
+            if name.endswith(".py"):
+                name = name[:-3]
+                ScriptsFinder.scripts[name] = script.content
 
 @bind("#new_script", "click")
 def new_script(evt):
@@ -322,9 +325,9 @@ def vfs_open(evt):
     db = request.result
     tx = db.transaction("scripts", "readonly")
     store = tx.objectStore("scripts")
-    cursor = store.openCursor()
+    req = store.getAllKeys()
 
-    dialog_window = Dialog("Open file...",
+    dialog_window = dialog.Dialog("Open file...",
                            top=filebrowser.abs_top,
                            left=filebrowser.abs_left)
 
@@ -333,18 +336,14 @@ def vfs_open(evt):
         "cursor": "default"
     }
     def get_scripts(evt):
-        res = evt.target.result
-        if res:
-            scripts.append(res.value.name)
-            getattr(res, "continue")()
-        else:
-            scripts.sort()
-            for script in scripts:
-                script_elt = html.SPAN(script, style=script_style)
-                dialog_window.panel <= script_elt + html.BR()
-                script_elt.bind("click", open_script)
+        scripts = evt.target.result
+        scripts.sort()
+        for script in scripts:
+            script_elt = html.SPAN(script, style=script_style)
+            dialog_window.panel <= script_elt + html.BR()
+            script_elt.bind("click", open_script)
 
-    cursor.bind('success', get_scripts)
+    req.bind('success', get_scripts)
 
 def _remove(filename):
     """Remove an open file. Used by close() and trash()."""
@@ -408,7 +407,14 @@ def save(evt):
     # When record is added, show message
     def ok(evt):
         current.text = name
-        alert("saved")
+        dialog.InfoDialog("Text editor", f"{name} saved",
+            remove_after=2)
+        # update ScriptsFinder
+        if name.endswith(".py"):
+            mod_name = name[:-3]
+            ScriptsFinder.scripts[mod_name] = editor.getValue()
+            # delete from sys.modules to force reloading
+            del sys.modules[mod_name]
 
     cursor.bind('success', ok)
 
