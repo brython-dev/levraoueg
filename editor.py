@@ -14,6 +14,13 @@ import sys
 import tb
 
 sys.meta_path.append(ScriptsFinder)
+
+# If protocol is file://, don't use finders that use Ajax calls
+if window.location.href.startswith("file://"):
+    import _importlib
+    sys.meta_path.remove(_importlib.ImporterPath)
+    sys.meta_path.remove(_importlib.StdlibStatic)
+
 from console import Console
 
 translations = {
@@ -414,7 +421,8 @@ def save(evt):
             mod_name = name[:-3]
             ScriptsFinder.scripts[mod_name] = editor.getValue()
             # delete from sys.modules to force reloading
-            del sys.modules[mod_name]
+            if mod_name in sys.modules:
+                del sys.modules[mod_name]
 
     cursor.bind('success', ok)
 
