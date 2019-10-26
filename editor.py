@@ -2,7 +2,7 @@ import re
 
 from browser import ajax, bind, confirm, document, window, alert, prompt, html
 from browser import console
-from browser.widgets import dialog
+from widgets import dialog
 
 from scripts_finder import ScriptsFinder
 
@@ -62,14 +62,15 @@ if load_file:
     req = ajax.get(load_file,
         oncomplete=lambda evt: load3(evt.text, load_file))
 
-# Set height of container to 80% of screen
-height = document.documentElement.clientHeight
-document['container'].style.height = f'{int(height * 0.8)}px'
+# Set height of container
 
-# Set position of legend text
-document['legend'].style.top = f'{int(height * 0.9)}px'
+@bind(window, "resize")
+def resize(*args):
+    height = document.documentElement.clientHeight
+    document['container'].style.height = f'{int(height * 0.9)}px'
 
-filezone = document["filezone"]
+resize()
+
 filebrowser = document["file-browser"]
 
 open_files = {} # Maps file name to their content
@@ -79,9 +80,9 @@ editor = None
 # Create a Python code editor with Ace
 def create_editor():
     global editor
-    document["editor"].style.backgroundColor = "#fff"
+    #document["editor"].style.backgroundColor = "#fff"
     editor = window.ace.edit("editor")
-    editor.setTheme("ace/theme/github")
+    editor.setTheme("ace/theme/dracula")
     editor.session.setMode("ace/mode/python")
     editor.focus()
     editor.on("change", editor_changed)
@@ -344,11 +345,14 @@ def vfs_open(evt):
     }
     def get_scripts(evt):
         scripts = evt.target.result
-        scripts.sort()
-        for script in scripts:
-            script_elt = html.SPAN(script, style=script_style)
-            dialog_window.panel <= script_elt + html.BR()
-            script_elt.bind("click", open_script)
+        if not scripts:
+            dialog_window.panel <= "No file"
+        else:
+            scripts.sort()
+            for script in scripts:
+                script_elt = html.SPAN(script, style=script_style)
+                dialog_window.panel <= script_elt + html.BR()
+                script_elt.bind("click", open_script)
 
     req.bind('success', get_scripts)
 
