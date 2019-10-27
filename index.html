@@ -20,7 +20,7 @@ body{
     font-family: tahoma, arial;
     font-size: 12px;
     color: #000;
-    background-color: #aaa;
+    background-color: #ccc;
 }
 button, a.btn {
     border-width: 1px;
@@ -32,7 +32,7 @@ button, a.btn {
 }
 
 #container {
-    width:90%;
+    width:100%;
     height: 100vh;
     position:relative;
     margin-top: 2em;
@@ -85,6 +85,7 @@ button, a.btn {
     float:none;
     width:100%;
     height:100%;
+    background-color: #282a37;
 }
 
 #console {
@@ -100,6 +101,10 @@ button, a.btn {
 
 #filezone{
     margin: 0.5em;
+}
+
+#import{
+    margin-left: 5em;
 }
 
 #undo{
@@ -126,10 +131,11 @@ a.btn{
 
 <script type="text/javascript" src="brython/brython.js"></script>
 <script type="text/javascript" src="brython/brython_stdlib.js"></script>
-<script src="widgets/widgets.brython.js"></script>
 <script src="ace/ace.js" type="text/javascript" charset="utf-8"></script>
 
 <link rel="stylesheet" href="fontawesome/css/all.css">
+
+<!-- script src="widgets/widgets.brython.js"></script -->
 <link rel="stylesheet" href="widgets/brython-widgets.css">
 
 </head>
@@ -157,6 +163,13 @@ a.btn{
           <i class="fa fa-trash"></i>
         </a>
 
+        <a href="#" id="import" class="btn" title="Import">
+          <i class="fas fa-file-import"></i>
+        </a>
+        <a href="#" id="export" class="btn" title="Export">
+          <i class="fas fa-file-export"></i>
+        </a>
+
         <a href="#" download="filename" id="undo" class="btn padleft" title="Undo">
           <i class="fas fa-undo"></i>
         </a>
@@ -168,9 +181,9 @@ a.btn{
         </a>
       </td>
       <td>
-        <span id="legend_text">Python code editor. Uses
+        Python code editor. Uses
         <a href="https://brython.info" target="_blank">Brython</a> and
-        <a href="https://ace.c9.io/">Ace</a></span>.
+        <a href="https://ace.c9.io/">Ace</a>.
       </td>
     </tr>
 

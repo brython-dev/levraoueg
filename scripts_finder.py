@@ -7,9 +7,10 @@ class ScriptsFinder:
     scripts = {}
 
     @classmethod
-    def find_spec(cls, fullname, path=None):
+    def find_spec(cls, name, path=None):
+        fullname = name + ".py"
         if fullname in ScriptsFinder.scripts:
-            spec = ModuleSpec(fullname, ScriptsFinder)
+            spec = ModuleSpec(name, ScriptsFinder)
             spec.cached = False
             spec.has_location = True
             spec.loader_state = {

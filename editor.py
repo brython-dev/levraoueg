@@ -1,3 +1,4 @@
+import _importlib
 import re
 
 from browser import ajax, bind, confirm, document, window, alert, prompt, html
@@ -5,6 +6,7 @@ from browser import console
 from widgets import dialog
 
 from scripts_finder import ScriptsFinder
+from translations import _
 
 document["wait"].remove()
 document["container"].style.visibility = "visible"
@@ -13,46 +15,17 @@ document["legend"].style.visibility = "visible"
 import sys
 import tb
 
-sys.meta_path.append(ScriptsFinder)
 
 # If protocol is file://, don't use finders that use Ajax calls
 if window.location.href.startswith("file://"):
-    import _importlib
     sys.meta_path.remove(_importlib.ImporterPath)
     sys.meta_path.remove(_importlib.StdlibStatic)
+    sys.meta_path.append(ScriptsFinder)
+else:
+    sys.meta_path.insert(sys.meta_path.index(_importlib.ImporterPath), 
+        ScriptsFinder)
 
 from console import Console
-
-translations = {
-    "fr":{
-        "close": "Fermer",
-        "confirm_delete": "Voulez-vous supprimer le fichier\n{} ?",
-        "file_changed": "Le fichier {} a changé.\nEnregistrer ?",
-        "file_deleted": "Fichier supprimé",
-        "new_script": "Nouveau script",
-        "open": "Ouvrir",
-        "redo": "Refaire",
-        "save": "Enregistrer",
-        "undo": "Défaire",
-        "run_source": "Exécuter",
-        "legend_text": """Editeur de code Python. Utilise
-                <a href="https://brython.info" target="_blank">Brython</a> et
-                <a href="https://ace.c9.io/">Ace</a>""",
-        "trash": "Supprimer"
-    }
-}
-
-language = document.query.getfirst("lang") # query string
-if language is None:
-    language = window.navigator.language # browser setting
-    if language is not None:
-        language = language[:2]
-
-# Translate
-if language in translations:
-    for elt_id, translation in translations[language].items():
-        if elt_id in document:
-            document[elt_id].attrs["title"] = translation
 
 # If there is an argument "file" in the query string, try to load a file
 # of the same name in this HTML page's directory
@@ -67,7 +40,7 @@ if load_file:
 @bind(window, "resize")
 def resize(*args):
     height = document.documentElement.clientHeight
-    document['container'].style.height = f'{int(height * 0.9)}px'
+    document['container'].style.height = f'{int(height * 0.95)}px'
 
 resize()
 
@@ -80,12 +53,12 @@ editor = None
 # Create a Python code editor with Ace
 def create_editor():
     global editor
-    #document["editor"].style.backgroundColor = "#fff"
-    editor = window.ace.edit("editor")
-    editor.setTheme("ace/theme/dracula")
-    editor.session.setMode("ace/mode/python")
-    editor.focus()
-    editor.on("change", editor_changed)
+    if editor is None:
+        editor = window.ace.edit("editor")
+        editor.setTheme("ace/theme/dracula")
+        editor.session.setMode("ace/mode/python")
+        editor.focus()
+        editor.on("change", editor_changed)
     return editor
 
 def editor_changed(*args):
@@ -99,12 +72,6 @@ def editor_changed(*args):
         elif current[0].text.endswith("*"):
             current[0].text = current[0].text.rstrip("*")
 
-def _(id, default):
-    """Translation."""
-    if language and language in translations and \
-            id in translations[language]:
-        return translations[language][id]
-    return default
 
 # indexedDB
 IDB = window.indexedDB
@@ -127,11 +94,45 @@ def load_scripts(evt):
 
     @bind(req, "success")
     def check(evt):
+        # Load all Python scripts in dictionary ScriptsFinder.scripts
         for script in evt.target.result:
             name = script.name
             if name.endswith(".py"):
-                name = name[:-3]
                 ScriptsFinder.scripts[name] = script.content
+
+@bind("#import", "click")
+def _import(ev):
+    title = _("Import Python script from disk")
+    import_dialog = dialog.Dialog(title)
+    file_selector = html.INPUT(type="file")
+    import_dialog.panel <= file_selector
+
+    @bind(file_selector, "change")
+    def change(evt):
+        files = evt.target.files
+        file = files.item(0)
+        import_dialog.remove()
+        if not file.name.endswith(".py"):
+            dialog.InfoDialog("Import file from disk",
+                "Error - can only import Python scripts")
+        else:
+            reader = window.FileReader.new(file)
+
+            @bind(reader, "load")
+            def read_file(evt):
+                content = reader.result
+                if file.name in ScriptsFinder.scripts:
+                    alert("name conflict " + file.name)
+                else:
+                    create_editor()
+                    open_files[file.name] = {"content": content,
+                        "cursor": [0, 0]}
+                    editor.setValue(content)
+                    update_filebrowser(file.name)
+                    current = filebrowser.select_one(".current")
+                    save_to_db(file.name, content, current)
+
+            reader.readAsText(file)
 
 @bind("#new_script", "click")
 def new_script(evt):
@@ -359,6 +360,7 @@ def vfs_open(evt):
 def _remove(filename):
     """Remove an open file. Used by close() and trash()."""
     del open_files[filename]
+    del ScriptsFinder.scripts[filename]
     if open_files:
         files = list(open_files)
         filename = files[-1]
@@ -408,11 +410,15 @@ def save(evt):
     if not name:
         return
     name = name.rstrip("*")
+    content = editor.getValue()
+    save_to_db(name, content, current)
+
+def save_to_db(name, content, current=None):
     db = request.result
     tx = db.transaction("scripts", "readwrite")
     store = tx.objectStore("scripts")
     cursor = store.openCursor()
-    data = {"name": name, "content": editor.getValue()}
+    data = {"name": name, "content": content}
     store.put(data)
 
     # When record is added, show message
@@ -423,7 +429,7 @@ def save(evt):
         # update ScriptsFinder
         if name.endswith(".py"):
             mod_name = name[:-3]
-            ScriptsFinder.scripts[mod_name] = editor.getValue()
+            ScriptsFinder.scripts[name] = editor.getValue()
             # delete from sys.modules to force reloading
             if mod_name in sys.modules:
                 del sys.modules[mod_name]
@@ -440,21 +446,27 @@ def trash(evt):
     if not name:
         return
     name = name.rstrip("*")
-    msg = _("confirm_delete", "Do you want to delete\nfile {} ?")
-    resp = confirm(msg.format(name))
-    if not resp:
-        return
-    db = request.result
-    tx = db.transaction("scripts", "readwrite")
-    store = tx.objectStore("scripts")
-    cursor = store.openCursor()
-    store.delete(name)
 
-    def ok(evt):
-        alert(_("file_deleted", "File deleted"))
-        _remove(name)
+    confirm = dialog.Dialog(_("Delete file"),
+        ok_cancel=True)
+    confirm.panel <= _("Do you want to delete\nfile {} ?").format(name)
 
-    cursor.bind("success", ok)
+    @bind(confirm.ok_button, "click")
+    def make_trash(evt):
+        confirm.remove()
+        db = request.result
+        tx = db.transaction("scripts", "readwrite")
+        store = tx.objectStore("scripts")
+        cursor = store.openCursor()
+        store.delete(name)
+
+        def ok(evt):
+            dialog.InfoDialog(_("file_deleted"),
+                _("File {} deleted".format(name)),
+                remove_after=2)
+            _remove(name)
+
+        cursor.bind("success", ok)
 
 # Create the interactive Python console
 output = Console(document["console"])
