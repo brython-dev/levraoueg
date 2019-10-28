@@ -4,7 +4,7 @@ translations = {
     "fr":{
         "close": "Fermer",
         "export": "Exporter vers un fichier local", 
-        "import": "Importer un fichier local",
+        "import": "Importer depuis un fichier local",
         "new_script": "Nouveau script",
         "open": "Ouvrir",
         "redo": "Refaire",
