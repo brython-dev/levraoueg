@@ -1,5 +1,7 @@
 import _importlib
 import sys
+import base64
+
 import tb
 
 from browser import (ajax, bind, confirm, console, document, window, alert,
@@ -297,14 +299,21 @@ def update_filebrowser(current=None):
             line.classList.add("current")
         line.bind("click", display)
         filebrowser <= line
+    if current:
+        # set information on the "export to local file" button
+        content = editor.getValue()
+        b64 = base64.b64encode(content.encode("utf-8")).decode("utf-8")
+        document["export"].href = ("data:text/plain;charset=utf-8;base64," +
+            b64)
+        document["export"].download = current
 
 def load3(content, filename):
     """Load the filename's content in the editor, update data."""
     open_files[filename] = {"content": content, "cursor": [0, 0]}
-    update_filebrowser(filename)
 
     create_editor()
     editor.setValue(content)
+    update_filebrowser(filename)
     editor.moveCursorTo(0, 0, False)
     editor.focus()
 

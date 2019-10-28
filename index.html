@@ -103,14 +103,6 @@ button, a.btn {
     margin: 0.5em;
 }
 
-#import{
-    margin-left: 5em;
-}
-
-#undo{
-    margin-left: 5em;
-}
-
 a.btn{
     text-decoration: none;
     cursor: default;
@@ -153,7 +145,7 @@ a.btn{
         <a href="#" id="open" class="btn" title="Open">
           <i class="fas fa-folder-open"></i>
         </a>
-        <a href="#" download="filename" id="save" class="btn" title="Save">
+        <a href="#" id="save" class="btn" title="Save">
           <i class="fas fa-save"></i>
         </a>
         <a href="#" id="close" class="btn" title="Close">
@@ -163,17 +155,19 @@ a.btn{
           <i class="fa fa-trash"></i>
         </a>
 
-        <a href="#" id="import" class="btn" title="Import">
+        <a href="#" id="import" class="btn padleft" 
+            title="Import from local file">
           <i class="fas fa-file-import"></i>
         </a>
-        <a href="#" id="export" class="btn" title="Export">
+        <a href="#" download="filename" id="export" class="btn"
+            title="Export to local file">
           <i class="fas fa-file-export"></i>
         </a>
 
-        <a href="#" download="filename" id="undo" class="btn padleft" title="Undo">
+        <a href="#" id="undo" class="btn padleft" title="Undo">
           <i class="fas fa-undo"></i>
         </a>
-        <a href="#" download="filename" id="redo" class="btn" title="Redo">
+        <a href="#" id="redo" class="btn" title="Redo">
           <i class="fas fa-redo"></i>
         </a>
         <a id="run_source" class="btn padleft" title="Run">
