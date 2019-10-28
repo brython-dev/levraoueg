@@ -1,31 +1,32 @@
 import _importlib
-import re
+import sys
+import tb
 
-from browser import ajax, bind, confirm, document, window, alert, prompt, html
-from browser import console
-from widgets import dialog
+from browser import (ajax, bind, confirm, console, document, window, alert,
+    prompt, html)
 
+from javascript import RegExp
+
+# If protocol is file://, don't use finders that use Ajax calls
 from scripts_finder import ScriptsFinder
+
+if window.location.href.startswith("file://"):
+    sys.meta_path.remove(_importlib.ImporterPath)
+    sys.meta_path.remove(_importlib.StdlibStatic)
+    sys.meta_path.append(ScriptsFinder)
+else:
+    sys.meta_path.insert(sys.meta_path.index(_importlib.ImporterPath),
+        ScriptsFinder)
+
+from widgets import dialog
+from console import Console
+
 from translations import _
 
 document["wait"].remove()
 document["container"].style.visibility = "visible"
 document["legend"].style.visibility = "visible"
 
-import sys
-import tb
-
-
-# If protocol is file://, don't use finders that use Ajax calls
-if window.location.href.startswith("file://"):
-    sys.meta_path.remove(_importlib.ImporterPath)
-    sys.meta_path.remove(_importlib.StdlibStatic)
-    sys.meta_path.append(ScriptsFinder)
-else:
-    sys.meta_path.insert(sys.meta_path.index(_importlib.ImporterPath), 
-        ScriptsFinder)
-
-from console import Console
 
 # If there is an argument "file" in the query string, try to load a file
 # of the same name in this HTML page's directory
@@ -149,9 +150,10 @@ def new_script(evt):
         res = evt.target.result
         if res:
             name = res.value.name
-            mo = re.match("^module(\d+).py$", name)
+            re = RegExp.new(r"^module(\d+).py$")
+            mo = re.exec(name)
             if mo:
-                nums.append(int(mo.groups()[0]))
+                nums.append(int(mo[1]))
             getattr(res, "continue")()
         else:
             if not nums:
@@ -359,6 +361,7 @@ def vfs_open(evt):
 
 def _remove(filename):
     """Remove an open file. Used by close() and trash()."""
+    global editor
     del open_files[filename]
     del ScriptsFinder.scripts[filename]
     if open_files:
@@ -369,8 +372,8 @@ def _remove(filename):
     else:
         filebrowser.clear()
         document["editor"].clear()
-        document["editor"].style.backgroundColor = "#aaa"
         editor.destroy()
+        editor = None
 
 @bind("#close", "click")
 def close(evt):
@@ -462,7 +465,7 @@ def trash(evt):
 
         def ok(evt):
             dialog.InfoDialog(_("file_deleted"),
-                _("File {} deleted".format(name)),
+                _("File {} deleted").format(name),
                 remove_after=2)
             _remove(name)
 
